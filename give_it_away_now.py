@@ -3,21 +3,35 @@ import time
 import getpass
 import colorama
 import json
-from random import randint
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
+
+#colors for... reasons...
+def print_color(text, color='white', bold=True):
+    colors = {
+        'red': '\033[1;31m',
+        'yellow': '\033[1;33m',
+        'green': '\033[1;32m',
+        'cyan': '\033[1;36m',
+        'white': '\033[1;37m',
+        'reset': '\033[0;0m',
+        'bold': '\033[;1m'
+        }
+    if bold:
+        print('{}{}{}{}'.format(colors['bold'], colors[color], text, colors['reset']))
+    else:
+        print('{}{}{}'.format(colors[color], text, colors['reset']))
 
 class GiveawayBot(object):
     def __init__(self):
         self.giveaways = set()
         try:
-            with open('state.json', 'r') as file:
-                self.giveaways = set(json.loads(file.read()))
+            with open('state.json', 'r') as fd:
+                self.giveaways = set(json.loads(fd.read()))
         except IOError:
-            print('No file state.json, passing.')
+            print_color('No state.json file, passing.', 'yellow')
         colorama.init(autoreset=True)
-        self.chromedriver = webdriver.Chrome('/home/casey/amazon-giveaway/chromedriver')
+        self.chromedriver = webdriver.Chrome('/path/to/chromedriver')
         self.chromedriver.implicitly_wait(4)
         self.instant_box = 'box_click_target'
         self.enter_button = 'enterSubmitForm'
@@ -44,8 +58,8 @@ class GiveawayBot(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         # self.chromedriver.quit()
-        with open('state.json', 'w') as file:
-            file.write(json.dumps([x for x in self.giveaways]))
+        with open('state.json', 'w') as fd:
+            fd.write(json.dumps([x for x in self.giveaways]))
         print("Exiting...")
 
     def _login(self, init=True):
@@ -55,7 +69,8 @@ class GiveawayBot(object):
             self.chromedriver.get(
                 'https://www.amazon.com/ap/signin?_encoding=UTF8&openid.assoc_handle=usflex&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.mode=checkid_setup&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.ns.pape=http%3A%2F%2Fspecs.openid.net%2Fextensions%2Fpape%2F1.0&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fwww.amazon.com%2Fga%2Fgiveaways'
             )
-        print(colorama.Fore.CYAN + colorama.Style.BRIGHT + "\nLogging into Amazon..."),
+        print_color('Logging into Amazon...', 'yellow')
+        # print(colorama.Fore.CYAN + colorama.Style.BRIGHT + "\nLogging into Amazon..."),
         email = self.chromedriver.find_element_by_name('email')
         email.send_keys(self.user_email_input)
         password = self.chromedriver.find_element_by_name('password')
@@ -66,16 +81,17 @@ class GiveawayBot(object):
         sign_in_submit.click()
 
         if self._check_for_element_id(self.auth_error_message):
-            print(colorama.Fore.RED + colorama.Style.BRIGHT + "Login Unsuccessful!\nExiting...")
+            print_color('Login Unsuccessful!\nExiting...', 'red')
+            # print(colorama.Fore.RED + colorama.Style.BRIGHT + "Login Unsuccessful!\nExiting...")
             self.chromedriver.quit()
             exit(1)
         elif self._check_for_element_id(self.auth_warning_message):
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "Login Unsuccessful!\nEnter credentials with Captcha or script will exit in 60 seconds...")
-            time.sleep(60)
-            self.chromedriver.quit()
-            exit(1)
+            print_color('Login Unsuccessful!\nEnter credentials with Captcha to continue. CTRL + C to quit.', 'yellow')
+            # print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + "Login Unsuccessful!\nEnter credentials with Captcha or script will exit in 60 seconds...")
+            raw_input('Press Enter to continue.')
 
-        print(colorama.Fore.GREEN + colorama.Style.BRIGHT + "Login Successful!  Continuing...")
+        print_color('Login Successful! Continuing...', 'green')
+        # print(colorama.Fore.GREEN + colorama.Style.BRIGHT + "Login Successful!  Continuing...")
 
     def _prize_name(self):
         prize_name = self.chromedriver.find_element_by_id('prize-name').text
@@ -84,7 +100,8 @@ class GiveawayBot(object):
     def process_page(self):
         page_count = 1
         while self._check_for_css_selector(self.next_button):
-            print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\nProcessing GiveAways for Page: {}'.format(page_count))
+            print_color('Processing GiveAways for Page: {}'.format(page_count), 'cyan')
+            # print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\nProcessing GiveAways for Page: {}'.format(page_count))
             self._process_no_req_giveaways()
             self._process_tweet_giveaways()
             self._process_twitter_follow_giveaways()
@@ -110,15 +127,19 @@ class GiveawayBot(object):
     def _did_you_win(self, title, prize_name):
         if 'you didn\'t win' in title:
             self.lost_giveaways += 1
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** You did not win: {}'.format(prize_name))
+            print_color('**** You did not win: {}'.format(prize_name), 'yellow')
+            # print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** You did not win: {}'.format(prize_name))
         elif 'you\'re a winner!' in title:
             self.won_giveaways += 1
-            print(colorama.Fore.GREEN + colorama.Style.BRIGHT + '**** Winner Winner! Chicken Dinner!: {}'.format(prize_name))
+            print_color('**** Winner Winner! Chicken Dinner!: {}'.format(prize_name), 'green')
+            # print(colorama.Fore.GREEN + colorama.Style.BRIGHT + '**** Winner Winner! Chicken Dinner!: {}'.format(prize_name))
         elif 'your entry has been received' in title:
             self.entered_giveaways += 1
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** You already entered: {}'.format(prize_name))
+            print_color('**** You already entered: {}'.format(prize_name), 'yellow')
+            # print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** You already entered: {}'.format(prize_name))
         else:
-            print(colorama.Fore.RED + colorama.Style.BRIGHT + '---- UNRECOGNIZED RESPONSE FOR: {}'.format(prize_name))
+            print_color('---- UNRECOGNIZED RESPONSE FOR: {}'.format(prize_name), 'red')
+            # print(colorama.Fore.RED + colorama.Style.BRIGHT + '---- UNRECOGNIZED RESPONSE FOR: {}'.format(prize_name))
         self.chromedriver.close()
         self.chromedriver.switch_to.window(self.chromedriver.window_handles[0])
 
@@ -160,12 +181,14 @@ class GiveawayBot(object):
             print('**** Skipping ' + prize_name)
             self.chromedriver.close()
             self.chromedriver.switch_to.window(self.chromedriver.window_handles[0])
+            time.sleep(10)
             return
         is_instant = self._check_for_element_id(self.instant_box)
         is_enter = self._check_for_element_id(self.enter_button)
         giveaway_ended = self._check_for_element_id('giveaway-ended-header')
         if giveaway_ended:
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** Giveaway for {} has already ended.'.format(prize_name))
+            print_color('**** Giveaway for {} has already ended.'.format(prize_name), 'yellow')
+            # print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** Giveaway for {} has already ended.'.format(prize_name))
             self.chromedriver.close()
             self.chromedriver.switch_to.window(self.chromedriver.window_handles[0])
         elif is_instant and not is_enter:
@@ -175,12 +198,12 @@ class GiveawayBot(object):
         else:
             self._did_you_win(self.chromedriver.find_element_by_id('title').text, prize_name)
         self.giveaways.add(prize_name)
-        # time.sleep(randint(1, 5))
+        time.sleep(10)
 
     def _instant_giveaway(self, prize_name):
         giveaway_box = self.chromedriver.find_element_by_id(self.instant_box)
         giveaway_box.click()
-        time.sleep(6)
+        time.sleep(10)
         self._did_you_win(self.chromedriver.find_element_by_id('title').text, prize_name)
     
     def _enter_giveaway(self, prize_name):
@@ -189,7 +212,8 @@ class GiveawayBot(object):
         get_result = self.chromedriver.find_element_by_id('title')
         if 'your entry has been received' in get_result.text:
             self.entered_giveaways += 1
-            print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '    **** You have entered the GiveAway for: {}. You will receive an email if you won.'.format(prize_name))
+            print_color('**** You have entered the GiveAway for: {}. You will receive an email if you won.'.format(prize_name), 'yellow')
+            # print(colorama.Fore.YELLOW + colorama.Style.BRIGHT + '**** You have entered the GiveAway for: {}. You will receive an email if you won.'.format(prize_name))
         else:
             print('This shouldn\'t happen.  RUN!')
         self.chromedriver.close()
@@ -213,27 +237,28 @@ class GiveawayBot(object):
     # function to process the 'None' requirement giveaways.
     def _process_no_req_giveaways(self):
         no_req_giveaways = self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"No entry requirement")]')
-        print('no_req_giveaways: {}'.format([x.text for x in no_req_giveaways]))
         number_of_no_req = str(len(no_req_giveaways))
-        print(colorama.Fore.CYAN + colorama.Style.BRIGHT + "\n#### Number of 'No entry requirement' GiveAways found on this page: {}".format(number_of_no_req))
-        for ga in self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"No entry requirement")]'):
+        print_color('\n#### Number of \'No entry requirement\' GiveAways found on this page: {}'.format(number_of_no_req), 'cyan')
+        # print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\n#### Number of \'No entry requirement\' GiveAways found on this page: {}'.format(number_of_no_req))
+        for ga in no_req_giveaways:
             # root_give_away = ga.find_element_by_xpath('./../..')
             # get_url = root_give_away.find_element_by_class_name('giveAwayItemDetails')
             # href = get_url.get_attribute('href')
             # self._open_tab(href)
             self._open_tab(ga.find_element_by_xpath('./../../../..').find_element_by_class_name('giveAwayItemDetails').get_attribute('href'))
             prize_name = self._prize_name()
-            print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
+            print_color('\n**** Processing GiveAway for: {}'.format(prize_name))
+            # print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
             self._instant_or_enter(prize_name)
-
 
     # function to process the 'Tweet' requirement giveaways.
     def _process_tweet_giveaways(self):
         tweet_giveaways = self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"Tweet a message")]')
         number_of_tweet_req = str(len(tweet_giveaways))
-        print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\n#### Number of \'Tweet a message\' Requirement GiveAways found on this page: {}'.format(number_of_tweet_req))
+        print_color('\n#### Number of \'Tweet a message\' Requirement GiveAways found on this page: {}'.format(number_of_tweet_req), 'cyan')
+        # print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\n#### Number of \'Tweet a message\' Requirement GiveAways found on this page: {}'.format(number_of_tweet_req))
         # print "\n#### Number of 'Tweet a message' Requirement GiveAways found on this page:  %s" % number_of_tweet_req
-        for ga in self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"Tweet a message")]'):
+        for ga in tweet_giveaways:
             root_give_away = ga.find_element_by_xpath('./../../../..')
             get_url = root_give_away.find_element_by_class_name('giveAwayItemDetails')
             href = get_url.get_attribute('href')
@@ -241,7 +266,8 @@ class GiveawayBot(object):
 
             prize_name = self._prize_name()
 
-            print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
+            print_color('\n**** Processing GiveAway for: {}'.format(prize_name))
+            # print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
 
             if self._check_for_element_id(self.tweet_id) or self._check_for_element_id(self.tweet_enter_id):
                 self.chromedriver.find_element_by_name('tweet').click()
@@ -252,8 +278,9 @@ class GiveawayBot(object):
     def _process_twitter_follow_giveaways(self):
         twitter_follow_giveaways = self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"on Twitter")]')
         number_of_twitter_follow_req = str(len(twitter_follow_giveaways))
-        print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\n#### Number of \'Follow on Twitter\' Requirement GiveAways found on this page: {}'.format(number_of_twitter_follow_req))
-        for ga in self.chromedriver.find_elements_by_xpath('//div//span[contains(.,"on Twitter")]'):
+        print_color('\n#### Number of \'Follow on Twitter\' Requirement GiveAways found on this page: {}'.format(number_of_twitter_follow_req), 'cyan')
+        # print(colorama.Fore.CYAN + colorama.Style.BRIGHT + '\n#### Number of \'Follow on Twitter\' Requirement GiveAways found on this page: {}'.format(number_of_twitter_follow_req))
+        for ga in twitter_follow_giveaways:
             root_give_away = ga.find_element_by_xpath('./../../../..')
             get_url = root_give_away.find_element_by_class_name('giveAwayItemDetails')
             href = get_url.get_attribute('href')
@@ -261,7 +288,8 @@ class GiveawayBot(object):
 
             prize_name = self._prize_name()
 
-            print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
+            print_color('\n**** Processing GiveAway for: {}'.format(prize_name))
+            # print(colorama.Fore.WHITE + colorama.Style.BRIGHT + '\n**** Processing GiveAway for: {}'.format(prize_name))
 
             if self._check_for_element_id(self.twitter_follow_id) or self._check_for_element_id(self.twitter_follow_enter_id):
                 self.chromedriver.find_element_by_name('follow').click()
